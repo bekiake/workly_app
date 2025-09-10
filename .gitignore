@@ -28,3 +28,6 @@ htmlcov/
 *.db
 *.sqlite
 *.bak
+/reports/
+/uploads
+/face_data_simple
