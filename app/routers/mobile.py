@@ -56,6 +56,21 @@ async def mobile_qr_scan(qr_request: QRScanRequest, db: AsyncSession = Depends(g
             "error_code": "SYSTEM_ERROR"
         }
     
+    # Agar error qaytarilgan bo'lsa
+    if isinstance(attendance, dict) and "error" in attendance:
+        return {
+            "success": False,
+            "message": attendance["error"],
+            "error_code": "VALIDATION_ERROR",
+            "employee_name": employee.full_name
+        }
+    
+    # Agar success dict qaytarilgan bo'lsa
+    if isinstance(attendance, dict) and "success" in attendance:
+        actual_attendance = attendance["attendance"]
+    else:
+        actual_attendance = attendance
+    
     # Muvaffaqiyatli javob
     action = "Ishga keldingiz" if qr_request.check_type.value == "IN" else "Ishdan ketdingiz"
     
@@ -65,13 +80,13 @@ async def mobile_qr_scan(qr_request: QRScanRequest, db: AsyncSession = Depends(g
         "employee_photo": employee.photo if employee.photo else None,
         "employee_name": employee.full_name,
         "employee_position": employee.position.value if employee.position else "Belgilanmagan",
-        "check_time": attendance.check_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "check_type": attendance.check_type.value,
-        "is_late": attendance.is_late
+        "check_time": actual_attendance.check_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "check_type": actual_attendance.check_type.value,
+        "is_late": actual_attendance.is_late
     }
     
     # Kechikish haqida ogohlantirish
-    if attendance.is_late and qr_request.check_type.value == "IN":
+    if actual_attendance.is_late and qr_request.check_type.value == "IN":
         response["warning"] = "⚠️ Siz kechikdingiz! (9:00 dan keyin)"
     
     return response
@@ -155,8 +170,8 @@ async def get_today_attendance(employee_id: int, db: AsyncSession = Depends(get_
             "id": attendance.id,
             "check_type": attendance.check_type.value,
             "check_time": attendance.check_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "location": attendance.location,
-            "is_late": attendance.is_late
+            "is_late": attendance.is_late,
+            "is_early_departure": attendance.is_early_departure
         })
     
     return {

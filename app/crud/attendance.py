@@ -133,9 +133,6 @@ async def create_attendance(db: AsyncSession, attendance: attendance_schema.Atte
     await db.commit()
     await db.refresh(db_attendance)
     return db_attendance
-    await db.commit()
-    await db.refresh(db_attendance)
-    return db_attendance
 
 async def get_attendance_by_employee(db: AsyncSession, employee_id: int, 
                                    start_date: Optional[date] = None, 

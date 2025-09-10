@@ -60,10 +60,7 @@ async def create_face_id_attendance(db: AsyncSession, employee_id: int, check_ty
     
     if already_checked:
         action = "kelgansiz" if check_type.value == "IN" else "ketgansiz"
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Siz bugun allaqachon {action} deb belgilangansiz"
-        )
+        return {"error": f"Siz bugun allaqachon {action} deb belgilangansiz"}
     
     # Attendance yaratish - UUID kerak
     attendance_data = AttendanceCreate(
@@ -197,6 +194,19 @@ async def recognize_face_attendance(
         try:
             attendance = await create_face_id_attendance(db, employee_id, check_type)
             print(f"Attendance created: {attendance}")
+            
+            # Agar attendance dict (error) bo'lsa
+            if isinstance(attendance, dict) and "error" in attendance:
+                return JSONResponse(
+                    status_code=400,
+                    content={
+                        "message": attendance["error"],
+                        "success": False,
+                        "recognized": True,
+                        "employee_id": employee_id
+                    }
+                )
+            
             employee = await get_employee_by_id(db, employee_id)  # Employee ma'lumotlarini olish
         except HTTPException as e:
             return JSONResponse(
