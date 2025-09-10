@@ -21,6 +21,8 @@ class SimpleFaceIDService:
         self.known_names = {}  # {employee_id: full_name}
         self.face_cascade = None
         self.face_templates = {}  # {employee_id: [face_images]}
+        self.tolerance = 0.3  # Simple face recognition tolerance
+        self.max_faces_per_employee = 3  # Har bir xodim uchun maksimal yuz soni
         
         # Face data papkasini yaratish
         os.makedirs(self.face_encodings_path, exist_ok=True)
@@ -179,20 +181,45 @@ class SimpleFaceIDService:
                     "faces_found": 0
                 }
             
+            # YAXSHILASHTIRILGAN TEKSHIRUV: 
+            # 1. Barcha mavjud xodimlar orasida bu yuz bormi?
+            # 2. Agar boshqa xodimga tegishli bo'lsa, xatolik qaytarish
+            for existing_emp_id, existing_features_list in self.known_faces.items():
+                for existing_features in existing_features_list:
+                    distance = self.compare_faces(existing_features, features)
+                    if distance < self.tolerance:
+                        if existing_emp_id == employee_id:
+                            return {
+                                "success": False,
+                                "message": "Bu yuz allaqachon ushbu xodim uchun ro'yxatga olingan.",
+                                "similarity": f"{(1-distance)*100:.1f}%",
+                                "duplicate_for": "same_employee"
+                            }
+                        else:
+                            existing_name = self.known_names.get(existing_emp_id, f"ID: {existing_emp_id}")
+                            return {
+                                "success": False,
+                                "message": f"Bu yuz boshqa xodimga ({existing_name}) tegishli. Bir xil yuzni ikki xodimga bog'lab bo'lmaydi.",
+                                "similarity": f"{(1-distance)*100:.1f}%",
+                                "duplicate_for": "different_employee",
+                                "existing_employee_id": existing_emp_id,
+                                "existing_employee_name": existing_name
+                            }
+            
             # Xodimning mavjud yuzlarini tekshirish
             if employee_id not in self.known_faces:
                 self.known_faces[employee_id] = []
                 self.face_templates[employee_id] = []
             
-            # Bir xil yuzni qayta qo'shmaslik uchun tekshirish
-            for existing_features in self.known_faces[employee_id]:
-                distance = self.compare_faces(existing_features, features)
-                if distance < 0.3:  # 30% similarity threshold
-                    return {
-                        "success": False,
-                        "message": "Bu yuz allaqachon ro'yxatga olingan.",
-                        "similarity": f"{(1-distance)*100:.1f}%"
-                    }
+            # Maksimal yuz soni tekshiruvi
+            current_face_count = len(self.known_faces[employee_id])
+            if current_face_count >= self.max_faces_per_employee:
+                return {
+                    "success": False,
+                    "message": f"Xodim uchun maksimal {self.max_faces_per_employee} ta yuz ruxsat etiladi. Avval eski yuzlarni o'chiring.",
+                    "current_faces": current_face_count,
+                    "max_allowed": self.max_faces_per_employee
+                }
             
             # Yangi yuzni qo'shish
             self.known_faces[employee_id].append(features)
@@ -215,8 +242,10 @@ class SimpleFaceIDService:
                 "message": f"{employee_name} ning yuz ma'lumotlari muvaffaqiyatli saqlandi.",
                 "employee_id": employee_id,
                 "face_count": face_count,
+                "max_faces": self.max_faces_per_employee,
                 "image_saved": image_path,
-                "method": "OpenCV Simple Face Recognition"
+                "method": "OpenCV Simple Face Recognition",
+                "can_add_more": face_count < self.max_faces_per_employee
             }
             
         except Exception as e:
@@ -342,6 +371,41 @@ class SimpleFaceIDService:
                 "error": str(e)
             }
     
+    def get_employee_faces_count(self, employee_id: int) -> int:
+        """Xodimning ro'yxatga olingan yuzlari sonini olish"""
+        return len(self.known_faces.get(employee_id, []))
+    
+    def can_add_more_faces(self, employee_id: int) -> dict:
+        """Xodim uchun yana yuz qo'shish mumkinligini tekshirish"""
+        current_count = self.get_employee_faces_count(employee_id)
+        can_add = current_count < self.max_faces_per_employee
+        
+        return {
+            "can_add": can_add,
+            "current_faces": current_count,
+            "max_faces": self.max_faces_per_employee,
+            "remaining_slots": self.max_faces_per_employee - current_count if can_add else 0
+        }
+    
+    def check_face_exists_for_other_employee(self, features, exclude_employee_id: int = None) -> dict:
+        """Berilgan yuz boshqa xodimga tegishli emasligini tekshirish"""
+        for emp_id, feature_list in self.known_faces.items():
+            if exclude_employee_id and emp_id == exclude_employee_id:
+                continue
+                
+            for existing_features in feature_list:
+                distance = self.compare_faces(existing_features, features)
+                if distance < self.tolerance:
+                    return {
+                        "exists": True,
+                        "employee_id": emp_id,
+                        "employee_name": self.known_names.get(emp_id, f"ID: {emp_id}"),
+                        "similarity": f"{(1-distance)*100:.1f}%",
+                        "distance": distance
+                    }
+        
+        return {"exists": False}
+
     def get_statistics(self) -> dict:
         """Face ID tizimi statistikalari"""
         total_employees = len(self.known_faces)
@@ -349,20 +413,28 @@ class SimpleFaceIDService:
         
         employee_stats = []
         for emp_id, faces in self.known_faces.items():
+            face_count = len(faces)
             employee_stats.append({
                 "employee_id": emp_id,
                 "employee_name": self.known_names.get(emp_id, "Noma'lum"),
-                "face_count": len(faces)
+                "face_count": face_count,
+                "can_add_more": face_count < self.max_faces_per_employee,
+                "remaining_slots": self.max_faces_per_employee - face_count
             })
         
         return {
             "total_employees": total_employees,
             "total_faces": total_faces,
             "average_faces_per_employee": total_faces / total_employees if total_employees > 0 else 0,
-            "tolerance": 0.5,  # 50% similarity threshold
+            "tolerance": self.tolerance,
+            "max_faces_per_employee": self.max_faces_per_employee,
             "method": "OpenCV Simple Face Recognition",
             "features": ["Histogram comparison", "Template matching", "Intensity statistics"],
-            "employee_details": employee_stats
+            "employee_details": employee_stats,
+            "system_limits": {
+                "max_faces_per_employee": self.max_faces_per_employee,
+                "face_recognition_tolerance": self.tolerance
+            }
         }
     
     def test_system(self) -> dict:
