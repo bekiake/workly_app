@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+aiosqlite
+asyncpg
+openpyxl
+opencv-python
+pillow
+numpy
+python-multipart
