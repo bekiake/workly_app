@@ -1,21 +1,27 @@
 from pydantic import BaseModel, Field
 from datetime import datetime, date
 from typing import Optional
-from app.models.attendance import CheckTypeEnum
+from app.models.attendance import CheckTypeEnum, SourceEnum
 
 class AttendanceBase(BaseModel):
     check_type: CheckTypeEnum
+    source: Optional[SourceEnum] = SourceEnum.APP
 
 class AttendanceCreate(AttendanceBase):
     employee_uuid: str = Field(..., description="Employee UUID from QR code")
+    location_lat: Optional[str] = None
+    location_lon: Optional[str] = None
 
 class AttendanceUpdate(BaseModel):
     check_type: Optional[CheckTypeEnum] = None
+    source: Optional[SourceEnum] = None
 
 class Attendance(AttendanceBase):
     id: int
     employee_id: int
     check_time: datetime
+    location_lat: Optional[str] = None
+    location_lon: Optional[str] = None
     is_late: bool = False
     is_early_departure: bool = False
 

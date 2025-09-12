@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum, Boolean, Numeric
+from sqlalchemy import Column, Integer, String, DateTime, Enum, Boolean, Numeric, BigInteger
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -28,6 +28,7 @@ class Employee(Base):
     phone = Column(String, nullable=True)
     photo = Column(String, nullable=True)  # Photo URL yoki base64
     base_salary = Column(Numeric(12, 2), nullable=True)  # Asosiy oylik maosh
+    telegram_id = Column(BigInteger, nullable=True, unique=True)  # Telegram user ID
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     

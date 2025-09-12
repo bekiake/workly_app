@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, Boolean
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Enum, Boolean, String
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -8,13 +8,20 @@ class CheckTypeEnum(enum.Enum):
     IN = "IN"
     OUT = "OUT"
 
+class SourceEnum(enum.Enum):
+    APP = "APP"
+    TELEGRAM = "TELEGRAM"
+
 class Attendance(Base):
     __tablename__ = "attendance"
 
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"))
     check_type = Column(Enum(CheckTypeEnum), nullable=False)
+    source = Column(Enum(SourceEnum), nullable=False, default=SourceEnum.APP)
     check_time = Column(DateTime(timezone=True), server_default=func.now())
+    location_lat = Column(String, nullable=True)  # Latitude для геолокации
+    location_lon = Column(String, nullable=True)  # Longitude для геолокации
     is_late = Column(Boolean, default=False)  # Kechikish (faqat IN uchun)
     is_early_departure = Column(Boolean, default=False)  # Erta ketish (faqat OUT uchun)
     

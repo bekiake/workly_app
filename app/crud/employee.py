@@ -74,3 +74,29 @@ async def delete_employee(db: AsyncSession, employee_id: int):
 async def get_employees_with_attendance_count(db: AsyncSession):
     result = await db.execute(select(employee_model.Employee))
     return result.scalars().all()
+
+
+async def get_employee_by_telegram_id(db: AsyncSession, telegram_id: int):
+    """Найти сотрудника по Telegram ID"""
+    result = await db.execute(
+        select(employee_model.Employee).where(employee_model.Employee.telegram_id == telegram_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def link_telegram_to_employee(db: AsyncSession, employee_id: int, telegram_id: int):
+    """Привязать Telegram ID к сотруднику"""
+    # Проверяем, что telegram_id не привязан к другому сотруднику
+    existing = await get_employee_by_telegram_id(db, telegram_id)
+    if existing and existing.id != employee_id:
+        return None, "Telegram ID уже привязан к другому сотруднику"
+    
+    # Обновляем сотрудника
+    db_employee = await get_employee_by_id(db, employee_id)
+    if not db_employee:
+        return None, "Сотрудник не найден"
+    
+    db_employee.telegram_id = telegram_id
+    await db.commit()
+    await db.refresh(db_employee)
+    return db_employee, "Успешно привязано"

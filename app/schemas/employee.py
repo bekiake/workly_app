@@ -10,6 +10,7 @@ class EmployeeBase(BaseModel):
     phone: Optional[str] = None
     photo: Optional[str] = None
     base_salary: Optional[Decimal] = None
+    telegram_id: Optional[int] = None
 
 class EmployeeCreate(EmployeeBase):
     pass
@@ -20,6 +21,7 @@ class EmployeeUpdate(BaseModel):
     phone: Optional[str] = None
     photo: Optional[str] = None
     base_salary: Optional[Decimal] = None
+    telegram_id: Optional[int] = None
     is_active: Optional[bool] = None
 
 class Employee(EmployeeBase):

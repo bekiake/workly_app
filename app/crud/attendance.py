@@ -84,6 +84,9 @@ async def create_attendance_by_qr(db: AsyncSession, qr_request: attendance_schem
     db_attendance = attendance_model.Attendance(
         employee_id=employee.id,
         check_type=qr_request.check_type,
+        source=qr_request.source if hasattr(qr_request, 'source') else attendance_model.SourceEnum.APP,
+        location_lat=qr_request.location_lat if hasattr(qr_request, 'location_lat') else None,
+        location_lon=qr_request.location_lon if hasattr(qr_request, 'location_lon') else None,
         is_late=is_late,
         is_early_departure=is_early_departure
     )
