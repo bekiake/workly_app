@@ -1,15 +1,13 @@
 import os
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
-# Удаляем импорт моделей бота, используем модели основного приложения
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-
-from app.core.database import Base
+# Bot uchun alohida Base yaratamiz
+Base = declarative_base()
 
 # Подключаемся к основной БД приложения
 # Используем DATABASE_URL из .env основного приложения
-DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('DB_URL') or "postgresql+asyncpg://username:password@localhost/workly_db"
+DATABASE_URL = os.getenv('DATABASE_URL') or os.getenv('DB_URL') or "sqlite+aiosqlite:///./workly.db"
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 

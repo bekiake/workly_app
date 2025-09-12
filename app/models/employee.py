@@ -30,7 +30,7 @@ class Employee(Base):
     base_salary = Column(Numeric(12, 2), nullable=True)  # Asosiy oylik maosh
     telegram_id = Column(BigInteger, nullable=True, unique=True)  # Telegram user ID
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime, nullable=False)  # Убрали timezone=True и server_default
     
     # Relationship
     attendance_records = relationship("Attendance", back_populates="employee")

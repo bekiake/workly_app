@@ -32,18 +32,16 @@ def format_daily_report(report_data):
     if report_data['on_time_employees']:
         message += "🎯 ПРИШЛИ ВОВРЕМЯ:\n"
         for emp_info in report_data['on_time_employees']:
-            source_icon = "📱" if emp_info['source'] == SourceEnum.TELEGRAM else "💻"
             time_str = emp_info['check_time'].strftime('%H:%M')
-            message += f"• {emp_info['employee'].full_name} - {time_str} {source_icon}\n"
+            message += f"• {emp_info['employee'].full_name} - {time_str}\n"
         message += "\n"
     
     # Список опоздавших
     if report_data['late_employees']:
         message += "⏰ ОПОЗДАЛИ:\n"
         for emp_info in report_data['late_employees']:
-            source_icon = "📱" if emp_info['source'] == SourceEnum.TELEGRAM else "💻"
             time_str = emp_info['check_time'].strftime('%H:%M')
-            message += f"• {emp_info['employee'].full_name} - {time_str} {source_icon}\n"
+            message += f"• {emp_info['employee'].full_name} - {time_str}\n"
         message += "\n"
     
     # Список отсутствующих

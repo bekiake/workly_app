@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import DATABASE_URL
 from app.models.employee import Employee, PositionEnum
 from app.models.attendance import Attendance, CheckTypeEnum
+from app.utils.timezone import get_tashkent_time, TASHKENT_TZ, get_tashkent_time_naive
 from app.core.database import Base
 
 # Async engine yaratish
@@ -90,7 +91,11 @@ async def create_sample_employees():
         try:
             employees = []
             for emp_data in SAMPLE_EMPLOYEES:
-                employee = Employee(**emp_data)
+                # Добавляем created_at для каждого сотрудника
+                emp_data_with_time = emp_data.copy()
+                emp_data_with_time['created_at'] = get_tashkent_time_naive()
+                
+                employee = Employee(**emp_data_with_time)
                 employees.append(employee)
                 session.add(employee)
             
@@ -110,7 +115,7 @@ async def create_sample_attendance(employees):
             
             # Oxirgi 30 kun uchun
             for day_offset in range(30):
-                current_date = datetime.now() - timedelta(days=day_offset)
+                current_date = get_tashkent_time_naive() - timedelta(days=day_offset)
                 
                 # Faqat ish kunlari uchun (dushanba-juma)
                 if current_date.weekday() < 5:  # 0-6, 0=Monday, 6=Sunday

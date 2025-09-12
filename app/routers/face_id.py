@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import Field
 import base64
+from app.utils.timezone import get_tashkent_time, format_tashkent_time
 
 router = APIRouter(prefix="/face-id", tags=["Face ID"])
 
@@ -116,7 +117,7 @@ async def register_employee_face(
                     "registration_info": {
                         "image_saved": result.get("image_saved"),
                         "face_encoding_created": True,
-                        "registration_time": datetime.now().isoformat(),
+                        "registration_time": format_tashkent_time(),
                         "method": result.get("method", "Simple Face Recognition")
                     },
                     "success": True,

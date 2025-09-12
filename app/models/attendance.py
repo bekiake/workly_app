@@ -19,7 +19,7 @@ class Attendance(Base):
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="CASCADE"))
     check_type = Column(Enum(CheckTypeEnum), nullable=False)
     source = Column(Enum(SourceEnum), nullable=False, default=SourceEnum.APP)
-    check_time = Column(DateTime(timezone=True), server_default=func.now())
+    check_time = Column(DateTime, nullable=False)  # Убрали timezone=True
     location_lat = Column(String, nullable=True)  # Latitude для геолокации
     location_lon = Column(String, nullable=True)  # Longitude для геолокации
     is_late = Column(Boolean, default=False)  # Kechikish (faqat IN uchun)

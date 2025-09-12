@@ -1,5 +1,5 @@
 from aiogram import F, types, Router
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, CallbackQuery
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,12 +8,13 @@ from database.orm_query import (
     orm_get_all_employees,
     orm_get_employee_by_telegram_id,
     orm_link_employee_telegram,
-    orm_create_attendance
+    orm_create_attendance,
+    orm_get_attendance_status_today,
+    orm_get_today_attendance_status
 )
 
 from filters.chat_types import ChatTypeFilter
-from kbds.inline import get_employee_selection_keyboard, get_attendance_keyboard, get_location_request_keyboard
-from kbds.reply import get_location_keyboard, get_main_menu
+from kbds.inline import get_employee_selection_keyboard, get_attendance_keyboard, get_location_request_keyboard, get_smart_attendance_keyboard, get_checkout_keyboard, get_smart_attendance_keyboard, get_checkout_keyboard
 from app.models.attendance import CheckTypeEnum
 import sys
 import os
@@ -22,6 +23,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 try:
     from utils.location import is_at_office, format_distance, validate_live_location_security, is_location_realistic
+    from utils.timezone import format_tashkent_time
 except ImportError:
     # Если модуль не найден, создадим заглушку
     def is_at_office(lat, lon):
@@ -32,6 +34,8 @@ except ImportError:
         return True, "OK"
     def is_location_realistic(lat, lon):
         return True
+    def format_tashkent_time(dt, fmt='%H:%M:%S'):
+        return dt.strftime(fmt)
 
 
 
@@ -42,42 +46,47 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 @user_private_router.message(CommandStart())
 async def start_cmd(message: types.Message, session: AsyncSession):
     # Добавляем пользователя в таблицу User (для совместимости)
-    await orm_add_user(
-        session=session,
-        user_id=message.from_user.id,
-        first_name=message.from_user.first_name,
-        last_name=message.from_user.last_name,
-        phone=None
-    )
     
     # Проверяем, привязан ли пользователь к сотруднику
     employee = await orm_get_employee_by_telegram_id(session, message.from_user.id)
     
     if employee:
-        # Если уже привязан, показываем клавиатуру посещаемости
-        await message.answer(
-            f"Добро пожаловать, {employee.full_name}!\n"
-            "Выберите действие:",
-            reply_markup=get_attendance_keyboard()
-        )
+        # Проверяем статус отметок на сегодня
+        already_checked_in, already_checked_out = await orm_get_today_attendance_status(session, employee.id)
+        
+        # Определяем сообщение в зависимости от статуса
+        if already_checked_in and already_checked_out:
+            status_text = f"Вы уже завершили рабочий день. До свидания! 👋"
+            await message.answer(status_text)
+        elif already_checked_in and not already_checked_out:
+            status_text = f"Вы на работе. Когда будете уходить, отметьтесь."
+            keyboard = get_smart_attendance_keyboard(already_checked_in, already_checked_out)
+            await message.answer(status_text, reply_markup=keyboard)
+        elif not already_checked_in:
+            status_text = f"Отметьтесь при приходе на работу."
+            keyboard = get_smart_attendance_keyboard(already_checked_in, already_checked_out)
+            await message.answer(status_text, reply_markup=keyboard)
+        else:
+            status_text = "Выберите действие:"
+            keyboard = get_attendance_keyboard()
+            await message.answer(f"Добро пожаловать, {employee.full_name}!\n\n{status_text}",
+            reply_markup=keyboard)
     else:
         # Если не привязан, показываем список сотрудников для выбора
         employees = await orm_get_all_employees(session)
         
         if not employees:
             await message.answer(
-                "❌ В системе пока нет сотрудников.\n"
-                "Обратитесь к HR или IT отделу для регистрации."
+                "❌ В системе нет зарегистрированных сотрудников.\n\n"
+                "Обратитесь к администратору для добавления сотрудников в систему."
             )
             return
-            
+
         await message.answer(
-            "👋 Добро пожаловать в систему учета рабочего времени!\n\n"
-            "Пожалуйста, выберите себя из списка сотрудников:",
+            "👋 Добро пожаловать в систему учета посещаемости!\n\n"
+            "Для начала работы выберите ваше имя из списка:",
             reply_markup=get_employee_selection_keyboard(employees)
         )
-
-
 @user_private_router.callback_query(F.data.startswith("select_employee_"))
 async def select_employee_callback(callback: CallbackQuery, session: AsyncSession):
     employee_id = int(callback.data.split("_")[-1])
@@ -126,9 +135,21 @@ async def attendance_callback(callback: CallbackQuery, session: AsyncSession):
         await callback.answer("❌ Вы не зарегистрированы в системе!", show_alert=True)
         return
     
+    # Проверяем статус отметок на сегодня
+    already_checked_in, already_checked_out = await orm_get_attendance_status_today(session, employee.id)
+    
     check_type = CheckTypeEnum.IN if check_type_str == "in" else CheckTypeEnum.OUT
     
     if check_type == CheckTypeEnum.IN:
+        # Проверяем, не отметился ли уже как "пришел"
+        if already_checked_in:
+            await callback.answer(
+                "⚠️ Вы уже отметились как ПРИШЕЛ сегодня!\n"
+                f"Время прихода: {format_tashkent_time(already_checked_in, '%H:%M:%S')}",
+                show_alert=True
+            )
+            return
+            
         # Для "Пришел" запрашиваем live location
         await callback.message.edit_text(
             "📍 Для отметки прихода необходимо подтвердить ваше местоположение\n\n"
@@ -143,6 +164,23 @@ async def attendance_callback(callback: CallbackQuery, session: AsyncSession):
             reply_markup=get_location_request_keyboard()
         )
     else:
+        # Проверяем, не отметился ли уже как "ушел"
+        if already_checked_out:
+            await callback.answer(
+                "⚠️ Вы уже отметились как УШЕЛ сегодня!\n"
+                f"Время ухода: {format_tashkent_time(already_checked_out, '%H:%M:%S')}",
+                show_alert=True
+            )
+            return
+            
+        # Проверяем, отметился ли как "пришел" сегодня
+        if not already_checked_in:
+            await callback.answer(
+                "⚠️ Сначала отметьтесь как ПРИШЕЛ!",
+                show_alert=True
+            )
+            return
+            
         # Для "Ушел" сразу создаем запись
         attendance = await orm_create_attendance(
             session=session,
@@ -151,11 +189,14 @@ async def attendance_callback(callback: CallbackQuery, session: AsyncSession):
         )
         
         await callback.message.edit_text(
-            f"✅ {employee.full_name}, вы успешно отметились как УШЕЛ\n"
-            f"🕐 Время: {attendance.check_time.strftime('%H:%M:%S')}\n\n"
+            f"✅ <b>{employee.full_name}</b>, \nвы успешно отметились как <b>УШЕЛ</b>\n"
+            f"🕐 Время: <code>{format_tashkent_time(attendance.check_time, '%H:%M:%S')}</code>\n\n"
             "Увидимся завтра! 👋",
-            reply_markup=get_attendance_keyboard()
+            reply_markup=None  # Убираем кнопки после отметки
         )
+    
+    # Важно: отвечаем на callback
+    await callback.answer()
 
 
 @user_private_router.callback_query(F.data == "how_to_location")
@@ -194,9 +235,9 @@ async def location_sent_callback(callback: CallbackQuery):
         "1. Проверьте, что отправили именно Live Location\n"
         "2. Убедитесь, что разрешили доступ к геолокации\n"
         "3. Попробуйте еще раз\n\n"
-        "📞 При проблемах обратитесь к IT отделу",
-        reply_markup=get_attendance_keyboard()
+        "📞 При проблемах обратитесь к IT отделу"
     )
+    await callback.answer()
 
 
 @user_private_router.message(F.location)
@@ -279,12 +320,13 @@ async def handle_location(message: Message, session: AsyncSession):
     )
     
     await message.answer(
-        f"✅ {employee.full_name}, вы успешно отметились как ПРИШЕЛ\n"
-        f"🕐 Время: {attendance.check_time.strftime('%H:%M:%S')}\n"
-        f"📍 Расстояние до офиса: {format_distance(distance)}\n"
+        f"✅ <b>{employee.full_name}</b>, \nвы успешно отметились как <b>ПРИШЕЛ</b>\n"
+        f"🕐 Время: <code>{format_tashkent_time(attendance.check_time, '%H:%M:%S')}</code>\n"
+        f"📍 Расстояние до офиса: <code>{format_distance(distance)}</code>\n"
         f"🎯 Live Location подтвержден\n\n"
-        "Хорошего рабочего дня! 😊",
-        reply_markup=get_attendance_keyboard()
+        "Хорошего рабочего дня! 😊\n\n"
+        "Когда будете уходить, нажмите кнопку ниже:",
+        reply_markup=get_checkout_keyboard()
     )
     
 
@@ -295,10 +337,13 @@ async def cancel_location(message: Message, session: AsyncSession):
     employee = await orm_get_employee_by_telegram_id(session, telegram_id)
     
     if employee:
+        # Проверяем статус отметок
+        already_checked_in, already_checked_out = await orm_get_today_attendance_status(session, employee.id)
+        
         await message.answer(
             f"❌ Отметка прихода отменена.\n\n"
             f"{employee.full_name}, выберите действие:",
-            reply_markup=get_attendance_keyboard()
+            reply_markup=get_smart_attendance_keyboard(already_checked_in, already_checked_out)
         )
     else:
         await message.answer(
@@ -306,41 +351,31 @@ async def cancel_location(message: Message, session: AsyncSession):
         )
 
 
-@user_private_router.message(F.text == "📊 Мой статус") 
-async def my_status(message: Message, session: AsyncSession):
-    """Показать статус сотрудника"""
-    telegram_id = message.from_user.id
-    employee = await orm_get_employee_by_telegram_id(session, telegram_id)
-    
-    if not employee:
-        await message.answer("❌ Вы не зарегистрированы в системе!")
-        return
-        
-    # Здесь можно добавить логику для показа последних отметок
-    await message.answer(
-        f"👤 {employee.full_name}\n"
-        f"💼 {employee.position.value if employee.position else 'Не указано'}\n"
-        f"📱 Telegram ID: {employee.telegram_id}\n\n"
-        "Для отметки используйте кнопки ниже:",
-        reply_markup=get_attendance_keyboard()
-    )
 
 
-@user_private_router.message(F.text == "ℹ️ Помощь")
-async def help_command(message: Message):
-    """Справка по использованию бота"""
+
+@user_private_router.message(Command("help"))
+async def help_command_slash(message: Message):
+    """Обработчик команды /help"""
     await message.answer(
-        "ℹ️ СПРАВКА ПО ИСПОЛЬЗОВАНИЮ БОТА\n\n"
-        "🎯 ОСНОВНЫЕ ФУНКЦИИ:\n"
-        "• ✅ Отметка прихода (с Live Location)\n"
-        "• ❌ Отметка ухода (без геолокации)\n"
-        "• 📊 Просмотр своего статуса\n\n"
-        "📍 ТРЕБОВАНИЯ К ГЕОЛОКАЦИИ:\n"
-        "• Только Live Location (НЕ обычная геолокация)\n"
-        "• Находиться в радиусе офиса\n"
-        "• Не использовать forwarded сообщения\n\n"
-        "🔧 КОМАНДЫ:\n"
-        "/start - Регистрация/главное меню\n\n"
-        "❓ При проблемах обратитесь к IT отделу"
+        "ℹ️ <b>СПРАВКА ПО ИСПОЛЬЗОВАНИЮ БОТА</b>\n\n"
+        "🎯 <b>ОСНОВНЫЕ ФУНКЦИИ:</b>\n"
+        "• ✅ Отметка прихода на работу (с Live Location)\n"
+        "• ❌ Отметка ухода с работы (без геолокации)\n"
+        "📍 <b>ТРЕБОВАНИЯ К ГЕОЛОКАЦИИ:</b>\n"
+        "• Используйте только <b>Live Location</b> (НЕ обычную геолокацию)\n"
+        "• Убедитесь, что находитесь в радиусе офиса\n"
+        "• Не пересылайте геолокацию от других пользователей\n"
+        "• Включите GPS на своем устройстве\n\n"
+        "🔧 <b>ДОСТУПНЫЕ КОМАНДЫ:</b>\n"
+        "• /start - Начать работу\n"
+        "• /help - Эта справка\n\n"
+        "⚡ <b>БЫСТРЫЕ ДЕЙСТВИЯ:</b>\n"
+        "• Нажмите 'Отметить приход' → отправьте Live Location\n"
+        "• Нажмите 'Отметить уход' → подтвердите действие\n"
+        "🆘 <b>ПОДДЕРЖКА:</b>\n"
+        "При возникновении проблем обратитесь к IT отделу\n"
+        "или администратору системы учета времени.",
+        parse_mode="HTML"
     )
     

@@ -6,6 +6,7 @@ from sqlalchemy import and_
 from typing import Optional, List
 from app.schemas import employee as employee_schema
 from app.models import employee as employee_model
+from app.utils.timezone import get_tashkent_time_naive
 
 async def create_employee(db: AsyncSession, employee: employee_schema.EmployeeCreate):
     employee_uuid = str(uuid.uuid4())
@@ -15,7 +16,8 @@ async def create_employee(db: AsyncSession, employee: employee_schema.EmployeeCr
         full_name=employee.full_name,
         position=employee.position,
         phone=employee.phone,
-        photo=employee.photo
+        photo=employee.photo,
+        created_at=get_tashkent_time_naive()  # Устанавливаем Ташкентское время
     )
     db.add(db_employee)
     await db.commit()

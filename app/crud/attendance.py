@@ -8,6 +8,7 @@ from app.models import attendance as attendance_model
 from app.models import employee as employee_model
 from app.schemas import attendance as attendance_schema
 from app.crud.employee import get_employee_by_uuid
+from app.utils.timezone import get_tashkent_time, convert_to_tashkent, get_tashkent_time_naive
 
 # Ish vaqti sozlamalari
 WORK_START_TIME = time(9, 30)  # 9:30
@@ -63,7 +64,7 @@ async def create_attendance_by_qr(db: AsyncSession, qr_request: attendance_schem
         return {"error": "Xodim topilmadi"}
 
     # Ish vaqtini tekshirish
-    check_time = datetime.now()
+    check_time = get_tashkent_time_naive()  # Naive datetime с Ташkentским временем
     is_valid_time, time_error = is_working_hours(check_time, qr_request.check_type.value)
     
     if not is_valid_time:
@@ -85,6 +86,7 @@ async def create_attendance_by_qr(db: AsyncSession, qr_request: attendance_schem
         employee_id=employee.id,
         check_type=qr_request.check_type,
         source=qr_request.source if hasattr(qr_request, 'source') else attendance_model.SourceEnum.APP,
+        check_time=check_time,  # Явно устанавливаем Ташкентское время
         location_lat=qr_request.location_lat if hasattr(qr_request, 'location_lat') else None,
         location_lon=qr_request.location_lon if hasattr(qr_request, 'location_lon') else None,
         is_late=is_late,
@@ -117,7 +119,7 @@ async def create_attendance(db: AsyncSession, attendance: attendance_schema.Atte
         return None
     
     # Ish vaqtini tekshirish
-    check_time = datetime.now()
+    check_time = get_tashkent_time_naive()  # Naive datetime с Ташkentским временем
     is_valid_time, time_error = is_working_hours(check_time, attendance.check_type.value)
     
     if not is_valid_time:
@@ -129,6 +131,7 @@ async def create_attendance(db: AsyncSession, attendance: attendance_schema.Atte
     db_attendance = attendance_model.Attendance(
         employee_id=employee.id,
         check_type=attendance.check_type,
+        check_time=check_time,  # Явно устанавливаем Ташкентское время
         is_late=is_late,
         is_early_departure=is_early_departure
     )
@@ -444,12 +447,13 @@ def calculate_salary_deductions(base_salary: float, worked_hours: float, expecte
             "amount": round(absent_deduction, 2)
         }
     
-    # Kechikkanlar uchun uderjhanie (har kechikish uchun kichik jarim)
+    # Kechikkanlar uchun uderjhanie (har kechikish uchun 1% maoshdan)
     if late_days > 0:
-        late_penalty = late_days * (daily_salary * 0.02)  # Har kechikish uchun kunlik maoshning 2%
+        late_penalty = late_days * (base_salary * 0.01)  # Har kechikish uchun oylik maoshning 1%
         deductions["late_arrivals"] = {
             "days": late_days,
-            "amount": round(late_penalty, 2)
+            "amount": round(late_penalty, 2),
+            "description": f"Har kechikish uchun 1% (jami {late_days}%)"
         }
     
     # Erta ketishlar uchun uderjhanie (har erta ketish uchun kichik jarim)

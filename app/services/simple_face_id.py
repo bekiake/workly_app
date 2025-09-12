@@ -43,7 +43,7 @@ class SimpleFaceIDService:
             if self.face_cascade.empty():
                 print("⚠️ Face cascade yuklashda muammo")
             else:
-                print("✅ OpenCV face cascade yuklandi")
+                pass
                 
         except Exception as e:
             print(f"❌ Face cascade yuklashda xatolik: {e}")
@@ -66,7 +66,6 @@ class SimpleFaceIDService:
                 self.known_faces = data.get('faces', {})
                 self.known_names = data.get('names', {})
                 self.face_templates = data.get('templates', {})
-            print(f"✅ {len(self.known_faces)} xodimning yuz ma'lumotlari yuklandi")
         except FileNotFoundError:
             print("📁 Yuz ma'lumotlari fayli topilmadi. Yangi fayl yaratiladi.")
             self.known_faces = {}

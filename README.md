@@ -30,12 +30,27 @@ venv\Scripts\activate  # Windows
 source venv/bin/activate  # Linux/Mac
 ```
 
-### 3. Paketlarni o'rnatish
+### 3. Environment o'zgaruvchilarini sozlash
+```bash
+# .env.example faylini nusxalash
+cp .env.example .env
+
+# .env faylini tahrirlash
+nano .env  # yoki boshqa matn muharriri
+```
+
+Asosiy sozlamalar:
+- `DATABASE_URL` - Ma'lumotlar bazasi manzili
+- `SECRET_KEY` - Xavfsizlik kaliti
+- `BOT_TOKEN` - Telegram bot tokeni (ixtiyoriy)
+- `WORK_START_TIME/WORK_END_TIME` - Ish vaqti
+
+### 4. Paketlarni o'rnatish
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Ma'lumotlar bazasini sozlash va sample ma'lumotlar yaratish
+### 5. Ma'lumotlar bazasini sozlash va sample ma'lumotlar yaratish
 ```bash
 # Ma'lumotlar bazasi jadvallarini yaratish va sample ma'lumotlarni yuklash
 python create_sample_data.py
@@ -248,9 +263,17 @@ workly_app/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                # FastAPI app entry point
+│   ├── bot/                   # Telegram Bot
+│   │   ├── app.py             # Bot asosiy fayli
+│   │   ├── .env.example       # Bot sozlamalar namunasi  
+│   │   ├── requirements.txt   # Bot dependencies
+│   │   ├── database/          # Bot database modullari
+│   │   ├── handlers/          # Bot command handlers
+│   │   └── utils/             # Bot utilities
 │   ├── core/
 │   │   ├── config.py          # Konfiguratsiya
-│   │   └── database.py        # Ma'lumotlar bazasi ulanishi
+│   │   ├── database.py        # Ma'lumotlar bazasi ulanishi
+│   │   └── settings.py        # Environment settings
 │   ├── crud/                  # CRUD operatsiyalari
 │   │   ├── attendance.py      # Davomat CRUD
 │   │   └── employee.py        # Xodim CRUD
@@ -274,12 +297,39 @@ workly_app/
 │       └── simple_face_id.py  # Sodda Face ID
 ├── face_data_simple/          # Face ID ma'lumotlari
 ├── uploads/                   # Yuklangan fayllar
+├── .env.example              # Environment variables namunasi
 ├── requirements.txt           # Python paketlari
 ├── create_sample_data.py      # Sample ma'lumotlar yaratish
 ├── face_id.html              # Face ID test sahifasi
 ├── FACE_ID_TEST_GUIDE.md     # Face ID test qo'llanmasi
 └── README.md                 # Loyiha haqida ma'lumot
 ```
+
+## Telegram Bot
+
+Loyihada Telegram bot ham mavjud bo'lib, xodimlar va administratorlar uchun qo'shimcha interfeys taqdim etadi.
+
+### Bot xususiyatlari:
+- 📊 Davomat statistikasi ko'rish
+- 👥 Xodimlar ro'yxati boshqaruvi  
+- 📄 Avtomatik hisobotlar yuborish
+- ⚙️ Admin panel
+
+### Bot ishga tushirish:
+```bash
+# Bot dependencies o'rnatish
+cd app/bot/
+pip install -r requirements.txt
+
+# .env sozlash
+cp .env.example .env
+# BOT_TOKEN va ADMIN_IDS to'ldiring
+
+# Bot ishga tushirish
+python app.py
+```
+
+Bot haqida batafsil ma'lumot: `app/bot/README.md`
 
 ## Muammolar va yechimlar
 
@@ -305,6 +355,12 @@ workly_app/
 - 10 ta xodim (turli lavozimlarda)
 - Oxirgi 30 kun uchun tasodifiy davomat
 - Kechikish va erta ketish holatlari simulatsiya qilinadi
+
+### Telegram Bot muammolari
+- **Circular Import**: `app/bot/database/app_models.py` orqali import qiling
+- **aiogram 3.7+**: `DefaultBotProperties` ishlatiladi
+- **Bot tokeni**: `.env` da `BOT_TOKEN` sozlang
+- **Database**: `text()` funksiyasini SQL da ishlating
 
 ## Yordam
 

@@ -3,10 +3,10 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 
 def get_location_keyboard():
-    """Клавиатура для запроса live location"""
+    """Клавиатура для запроса Live Location"""
     builder = ReplyKeyboardBuilder()
     
-    # Кнопка для отправки live location
+    # Кнопка для отправки Live Location
     builder.add(KeyboardButton(
         text="📍 Отправить Live Location",
         request_location=True
@@ -15,7 +15,7 @@ def get_location_keyboard():
     # Кнопка отмены
     builder.add(KeyboardButton(text="❌ Отмена"))
     
-    builder.adjust(1)  # По одной кнопке в ряд
+    builder.adjust(1)  # По одной кнопке в ряду
     return builder.as_markup(
         resize_keyboard=True,
         one_time_keyboard=True

@@ -3,9 +3,9 @@ from typing import Tuple
 from datetime import datetime, timedelta
 
 # Координаты офиса (замените на реальные)
-OFFICE_LATITUDE = 41.2995
-OFFICE_LONGITUDE = 69.2401
-OFFICE_RADIUS_METERS = 100  # Радиус в метрах для проверки
+OFFICE_LATITUDE = 41.304502
+OFFICE_LONGITUDE = 69.321159
+OFFICE_RADIUS_METERS = 200  # Радиус в метрах для проверки
 
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

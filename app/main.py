@@ -9,9 +9,9 @@ from app.models.attendance import Attendance
 from app.routers import employees, attendance as attendance_router, mobile, statistics, face_id
 
 app = FastAPI(
-    title="Workly Backend API", 
-    description="Xodimlar davomat nazorati tizimi",
-    version="1.0.0"
+    title="📊 Workly - Ishchilar Boshqaruv Tizimi",
+    description="Ishchilar davomat va ma'lum qilish tizimi",
+    version="2.0.0"
 )
 
 # SQLAdmin sozlash
