@@ -333,7 +333,7 @@ async def list_employees(message: types.Message, session: AsyncSession):
             
             text += f"{i}. {status} <b>{emp.full_name}</b>\n"
             text += f"   📱 ID: {emp.id} | 💼 {position}\n"
-            text += f"   💰 {salary} | 📞 {emp.phone or 'Yo\'q'}\n\n"
+            text += f"   💰 {salary} | 📞 {emp.phone or 'Yo`q'}\n\n"
         
         text += "⚡️ Boshqarish:\n"
         text += "• /edit_employee [ID] - Tahrirlash\n"
