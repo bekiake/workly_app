@@ -23,6 +23,7 @@ class EmployeeAdmin(ModelView, model=Employee):
     column_searchable_list = [Employee.full_name, Employee.phone]
     column_sortable_list = [Employee.id, Employee.full_name, Employee.phone, Employee.base_salary]
     column_details_list = [Employee.id, Employee.full_name, Employee.position, Employee.phone, Employee.base_salary, Employee.is_active, Employee.created_at]
+    column_default_sort = [(Employee.created_at, True)]  # Yaratilgan vaqt bo'yicha kamayish tartibida
     column_labels = {
         Employee.id: "ID",
         Employee.full_name: "To'liq ismi",
@@ -40,6 +41,7 @@ class AttendanceAdmin(ModelView, model=Attendance):
     column_list = [Attendance.id, Attendance.employee_id, Attendance.check_type, Attendance.check_time, Attendance.is_late]
     column_sortable_list = [Attendance.id, Attendance.employee_id, Attendance.check_time]
     column_details_list = [Attendance.id, Attendance.employee_id, Attendance.check_type, Attendance.check_time, Attendance.is_late]
+    column_default_sort = [(Attendance.check_time, True)]  # Vaqt bo'yicha kamayish tartibida (eng oxirgi birinchi)
     column_labels = {
         Attendance.id: "ID",
         Attendance.employee_id: "Xodim ID",
