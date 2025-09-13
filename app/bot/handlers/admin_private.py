@@ -50,6 +50,8 @@ async def admin_features(message: types.Message):
         "📅 /report_date YYYY-MM-DD - Отчет за конкретную дату\n"
         "📈 /week_stats - Статистика за неделю\n"
         "📋 /reports - Excel отчеты\n"
+        "👥 /employees - Управление сотрудниками\n"
+        "➕ /add_employee - Добавить сотрудника\n"
         "⚙️ /settings - Настройки бота",
         parse_mode="HTML"
     )
@@ -293,5 +295,216 @@ async def admin_settings(message: types.Message):
         "• Штрафы и бонусы\n"
         "• Уведомления\n"
         "• Резервное копирование",
+        parse_mode="HTML"
+    )
+
+
+# ========= XODIM BOSHQARUV =========
+
+class EmployeeStates(StatesGroup):
+    """Xodim qo'shish/tahrirlash uchun holatlar"""
+    waiting_full_name = State()
+    waiting_position = State()
+    waiting_phone = State()
+    waiting_salary = State()
+    waiting_telegram_id = State()
+    # Edit states
+    edit_waiting_field = State()
+    edit_waiting_value = State()
+    # Delete confirmation
+    delete_confirmation = State()
+
+@admin_router.message(Command("employees"))
+async def list_employees(message: types.Message, session: AsyncSession):
+    """Xodimlar ro'yxati"""
+    try:
+        from database.orm_query import orm_get_all_employees
+        employees = await orm_get_all_employees(session)
+        
+        if not employees:
+            await message.answer("📝 Hozircha birorta xodim mavjud emas.")
+            return
+        
+        text = "👥 <b>XODIMLAR RO'YXATI</b>\n\n"
+        for i, emp in enumerate(employees, 1):
+            status = "✅" if emp.is_active else "❌"
+            position = emp.position or "Belgilanmagan"
+            salary = f"{emp.base_salary:,.0f} so'm" if emp.base_salary else "Belgilanmagan"
+            
+            text += f"{i}. {status} <b>{emp.full_name}</b>\n"
+            text += f"   📱 ID: {emp.id} | 💼 {position}\n"
+            text += f"   💰 {salary} | 📞 {emp.phone or 'Yo\'q'}\n\n"
+        
+        text += "⚡️ Boshqarish:\n"
+        text += "• /edit_employee [ID] - Tahrirlash\n"
+        text += "• /delete_employee [ID] - O'chirish\n"
+        text += "• /toggle_employee [ID] - Faollashtirish/O'chirish"
+        
+        await message.answer(text, parse_mode="HTML")
+        
+    except Exception as e:
+        await message.answer(f"❌ Xato: {str(e)}")
+
+@admin_router.message(Command("add_employee"))
+async def start_add_employee(message: types.Message, state: FSMContext):
+    """Yangi xodim qo'shishni boshlash"""
+    await state.set_state(EmployeeStates.waiting_full_name)
+    await message.answer(
+        "➕ <b>YANGI XODIM QO'SHISH</b>\n\n"
+        "Xodimning to'liq ismini kiriting:\n"
+        "(Misol: Ahmadov Ahmad Ahmadovich)\n\n"
+        "❌ Bekor qilish uchun /cancel",
+        parse_mode="HTML"
+    )
+
+@admin_router.message(StateFilter(EmployeeStates.waiting_full_name))
+async def process_full_name(message: types.Message, state: FSMContext):
+    """To'liq ismni qabul qilish"""
+    full_name = message.text.strip()
+    
+    if len(full_name) < 2:
+        await message.answer("❌ Ism juda qisqa! Qaytadan kiriting:")
+        return
+    
+    await state.update_data(full_name=full_name)
+    await state.set_state(EmployeeStates.waiting_position)
+    
+    await message.answer(
+        "💼 <b>LAVOZIM</b>\n\n"
+        "Xodimning lavozimini kiriting:\n"
+        "(Misol: Dasturchi, Menejer, Dizayner va h.k.)\n\n"
+        "❌ /cancel - Bekor qilish",
+        parse_mode="HTML"
+    )
+
+@admin_router.message(StateFilter(EmployeeStates.waiting_position))
+async def process_position(message: types.Message, state: FSMContext):
+    """Lavozimni qabul qilish"""
+    position = message.text.strip()
+    
+    await state.update_data(position=position)
+    await state.set_state(EmployeeStates.waiting_phone)
+    
+    await message.answer(
+        "📞 <b>TELEFON RAQAM</b>\n\n"
+        "Telefon raqamini kiriting:\n"
+        "(Misol: +998901234567)\n\n"
+        "⏭ O'tkazib yuborish uchun: /skip\n"
+        "❌ Bekor qilish uchun: /cancel",
+        parse_mode="HTML"
+    )
+
+@admin_router.message(StateFilter(EmployeeStates.waiting_phone))
+async def process_phone(message: types.Message, state: FSMContext):
+    """Telefon raqamni qabul qilish"""
+    if message.text == "/skip":
+        phone = None
+    else:
+        phone = message.text.strip()
+    
+    await state.update_data(phone=phone)
+    await state.set_state(EmployeeStates.waiting_salary)
+    
+    await message.answer(
+        "💰 <b>OYLIK MAOSH</b>\n\n"
+        "Oylik maoshni kiriting (faqat raqam):\n"
+        "(Misol: 5000000)\n\n"
+        "⏭ O'tkazib yuborish uchun: /skip\n"
+        "❌ Bekor qilish uchun: /cancel",
+        parse_mode="HTML"
+    )
+
+@admin_router.message(StateFilter(EmployeeStates.waiting_salary))
+async def process_salary(message: types.Message, state: FSMContext):
+    """Maoshni qabul qilish"""
+    if message.text == "/skip":
+        salary = None
+    else:
+        try:
+            salary = float(message.text.strip())
+            if salary < 0:
+                await message.answer("❌ Maosh manfiy bo'lishi mumkin emas! Qaytadan kiriting:")
+                return
+        except ValueError:
+            await message.answer("❌ Noto'g'ri format! Faqat raqam kiriting:")
+            return
+    
+    await state.update_data(salary=salary)
+    await state.set_state(EmployeeStates.waiting_telegram_id)
+    
+    await message.answer(
+        "🤖 <b>TELEGRAM ID</b>\n\n"
+        "Telegram ID raqamini kiriting:\n"
+        "(Faqat raqam, masalan: 123456789)\n\n"
+        "⏭ O'tkazib yuborish uchun: /skip\n"
+        "❌ Bekor qilish uchun: /cancel",
+        parse_mode="HTML"
+    )
+
+@admin_router.message(StateFilter(EmployeeStates.waiting_telegram_id))
+async def process_telegram_id(message: types.Message, state: FSMContext, session: AsyncSession):
+    """Telegram ID qabul qilish va xodimni saqlash"""
+    if message.text == "/skip":
+        telegram_id = None
+    else:
+        try:
+            telegram_id = int(message.text.strip())
+        except ValueError:
+            await message.answer("❌ Noto'g'ri format! Faqat raqam kiriting:")
+            return
+    
+    # Ma'lumotlarni olish
+    data = await state.get_data()
+    
+    try:
+        from database.orm_query import orm_add_employee
+        
+        # Xodim yaratish
+        employee = await orm_add_employee(
+            session=session,
+            full_name=data['full_name'],
+            position=data.get('position'),
+            phone=data.get('phone'),
+            base_salary=data.get('salary'),
+            telegram_id=telegram_id
+        )
+        
+        # Ma'lumotlarni ko'rsatish
+        position = employee.position or "Belgilanmagan"
+        phone = employee.phone or "Yo'q"
+        salary = f"{employee.base_salary:,.0f} so'm" if employee.base_salary else "Belgilanmagan"
+        tg_id = employee.telegram_id or "Yo'q"
+        
+        await message.answer(
+            f"✅ <b>XODIM MUVAFFAQIYATLI QO'SHILDI!</b>\n\n"
+            f"👤 <b>Ism:</b> {employee.full_name}\n"
+            f"💼 <b>Lavozim:</b> {position}\n"
+            f"📞 <b>Telefon:</b> {phone}\n"
+            f"💰 <b>Maosh:</b> {salary}\n"
+            f"🤖 <b>Telegram ID:</b> {tg_id}\n"
+            f"🆔 <b>Xodim ID:</b> {employee.id}\n"
+            f"📅 <b>Yaratilgan:</b> {employee.created_at.strftime('%d.%m.%Y %H:%M')}\n\n"
+            f"🔑 <b>QR kod UUID:</b> <code>{employee.uuid}</code>",
+            parse_mode="HTML"
+        )
+        
+    except Exception as e:
+        await message.answer(f"❌ Xodim qo'shishda xato: {str(e)}")
+    
+    await state.clear()
+
+# Cancel operatsiyasi uchun
+@admin_router.message(Command("cancel"), StateFilter("*"))
+async def cancel_operation(message: types.Message, state: FSMContext):
+    """Har qanday operatsiyani bekor qilish"""
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("🤷‍♂️ Bekor qilinadigan operatsiya yo'q.")
+        return
+    
+    await state.clear()
+    await message.answer(
+        "❌ <b>OPERATSIYA BEKOR QILINDI</b>\n\n"
+        "👨‍💼 Asosiy menu: /admin",
         parse_mode="HTML"
     )

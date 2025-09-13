@@ -15,5 +15,7 @@ admin = [
     BotCommand(command='report', description='📋 Отчет за сегодня'),
     BotCommand(command='week_stats', description='📈 Статистика за неделю'),
     BotCommand(command='reports', description='📊 Excel отчеты'),
+    BotCommand(command='employees', description='👥 Управление сотрудниками'),
+    BotCommand(command='add_employee', description='➕ Добавить сотрудника'),
     BotCommand(command='settings', description='⚙️ Настройки'),
 ]

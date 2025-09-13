@@ -174,14 +174,14 @@ async def get_department_stats(
         year = datetime.now().year
     
     # Bo'lim xodimlari
-    from app.models.employee import PositionEnum
     try:
-        position_enum = PositionEnum(position.lower())
+        # No need to import PositionEnum as position is now a string
+        position_filter = position.lower() if position else None
     except ValueError:
         return {"error": "Noto'g'ri lavozim"}
     
     employees = await crud_employee.get_employees(db)
-    department_employees = [emp for emp in employees if emp.position == position_enum]
+    department_employees = [emp for emp in employees if emp.position and emp.position.lower() == position_filter]
     
     if not department_employees:
         return {"error": "Ushbu bo'limda xodimlar topilmadi"}
@@ -199,7 +199,7 @@ async def get_department_stats(
             total_present += emp_stats["statistics"]["unique_working_days"]
     
     return {
-        "department": position_enum.value,
+        "department": position.upper(),
         "period": {"month": month, "year": year},
         "summary": {
             "total_employees": len(department_employees),

@@ -23,7 +23,6 @@ class Attendance(Base):
     location_lat = Column(String, nullable=True)  # Latitude для геолокации
     location_lon = Column(String, nullable=True)  # Longitude для геолокации
     is_late = Column(Boolean, default=False)  # Kechikish (faqat IN uchun)
-    is_early_departure = Column(Boolean, default=False)  # Erta ketish (faqat OUT uchun)
     
     # Relationship
     employee = relationship("Employee", back_populates="attendance_records")

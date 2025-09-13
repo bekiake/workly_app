@@ -323,7 +323,7 @@ async def generate_daily_report(db: AsyncSession, target_date: date):
     # Headers
     headers = [
         "№", "Xodim ismi", "Lavozimi", "Harakat", "Vaqti", 
-        "Kechikdi", "Erta ketdi", "Vaqt farqi", "Izoh"
+        "Kechikdi", "Vaqt farqi", "Izoh"
     ]
     
     for col, header in enumerate(headers, 1):
@@ -361,30 +361,16 @@ async def generate_daily_report(db: AsyncSession, target_date: date):
                 izoh = "Vaqtida keldi"
         
         elif attendance.check_type.value == "OUT":
-            if attendance.is_early_departure:
-                # Erta ketish vaqtini hisoblash (18:00 dan necha daqiqa erta)
-                from datetime import time, datetime, timedelta
-                work_end = time(18, 0)
-                work_end_datetime = datetime.combine(attendance.check_time.date(), work_end)
-                if attendance.check_time < work_end_datetime:
-                    early_minutes = (work_end_datetime - attendance.check_time).seconds // 60
-                    vaqt_farqi = f"{early_minutes} daqiqa erta"
-                    izoh = f"Erta ketish: {early_minutes} daqiqa"
-                else:
-                    vaqt_farqi = "Vaqtida yoki kech"
-                    izoh = "Normal vaqtda ketdi"
-            else:
-                vaqt_farqi = "Vaqtida yoki kech"
-                izoh = "Normal vaqtda ketdi"
+            vaqt_farqi = "Vaqtida"
+            izoh = "Normal vaqtda ketdi"
         
         row_values = [
             row_idx - 1,
             employee.full_name if employee else "Noma'lum",
-            employee.position.value if employee and employee.position else "N/A",
+            employee.position if employee and employee.position else "N/A",
             "Keldi" if attendance.check_type.value == "IN" else "Ketdi",
             attendance.check_time.strftime("%H:%M:%S"),
             "Ha" if attendance.is_late else "Yo'q",
-            "Ha" if attendance.is_early_departure else "Yo'q",
             vaqt_farqi,
             izoh
         ]

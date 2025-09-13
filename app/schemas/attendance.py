@@ -23,7 +23,6 @@ class Attendance(AttendanceBase):
     location_lat: Optional[str] = None
     location_lon: Optional[str] = None
     is_late: bool = False
-    is_early_departure: bool = False
 
     class Config:
         from_attributes = True
@@ -43,7 +42,6 @@ class AttendanceReport(BaseModel):
     total_days: int
     present_days: int
     late_days: int
-    early_departure_days: int
     total_hours: float
     month: int
     year: int
@@ -56,7 +54,6 @@ class DailyWorkStats(BaseModel):
     check_in: Optional[datetime] = None
     check_out: Optional[datetime] = None
     is_late: bool = False
-    is_early_departure: bool = False
     late_minutes: int = 0
     early_departure_minutes: int = 0
 

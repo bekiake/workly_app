@@ -234,6 +234,104 @@ async def orm_get_attendance_status_today(session: AsyncSession, employee_id: in
     return check_in_time, check_out_time
 
 
+# ========= XODIM BOSHQARUV FUNKSIYALARI =========
+
+async def orm_get_all_employees(session: AsyncSession):
+    """Barcha xodimlarni olish"""
+    query = select(Employee).order_by(Employee.id)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+async def orm_get_employee_by_id(session: AsyncSession, employee_id: int):
+    """Xodimni ID bo'yicha olish"""
+    query = select(Employee).where(Employee.id == employee_id)
+    result = await session.execute(query)
+    return result.scalar_one_or_none()
+
+async def orm_add_employee(
+    session: AsyncSession,
+    full_name: str,
+    position: str = None,
+    phone: str = None,
+    base_salary: float = None,
+    telegram_id: int = None
+):
+    """Yangi xodim qo'shish"""
+    import uuid
+    
+    new_employee = Employee(
+        uuid=str(uuid.uuid4()),
+        full_name=full_name,
+        position=position,
+        phone=phone,
+        base_salary=base_salary,
+        telegram_id=telegram_id,
+        is_active=True,
+        created_at=get_tashkent_time_naive()
+    )
+    
+    session.add(new_employee)
+    await session.commit()
+    await session.refresh(new_employee)
+    return new_employee
+
+async def orm_update_employee(session: AsyncSession, employee_id: int, update_data: dict):
+    """Xodim ma'lumotlarini yangilash"""
+    
+    # Field mapping
+    field_mapping = {
+        "name": "full_name",
+        "position": "position",
+        "phone": "phone", 
+        "salary": "base_salary",
+        "telegram": "telegram_id"
+    }
+    
+    # Update data ni to'g'ri field nomlariga o'zgartirish
+    processed_data = {}
+    for key, value in update_data.items():
+        field_name = field_mapping.get(key, key)
+        processed_data[field_name] = value
+    
+    query = update(Employee).where(Employee.id == employee_id).values(**processed_data)
+    await session.execute(query)
+    await session.commit()
+    
+    # Yangilangan xodimni qaytarish
+    return await orm_get_employee_by_id(session, employee_id)
+
+async def orm_toggle_employee_status(session: AsyncSession, employee_id: int):
+    """Xodim faollik holatini o'zgartirish"""
+    employee = await orm_get_employee_by_id(session, employee_id)
+    if not employee:
+        raise ValueError("Xodim topilmadi")
+    
+    new_status = not employee.is_active
+    query = update(Employee).where(Employee.id == employee_id).values(is_active=new_status)
+    await session.execute(query)
+    await session.commit()
+    
+    # Yangilangan holatni qaytarish
+    return await orm_get_employee_by_id(session, employee_id)
+
+async def orm_delete_employee(session: AsyncSession, employee_id: int):
+    """Xodimni butunlay o'chirish (barcha bog'liq ma'lumotlar bilan)"""
+    employee = await orm_get_employee_by_id(session, employee_id)
+    if not employee:
+        raise ValueError("Xodim topilmadi")
+    
+    # Avval bog'liq attendance recordlarni o'chirish
+    delete_attendances = delete(Attendance).where(Attendance.employee_id == employee_id)
+    await session.execute(delete_attendances)
+    
+    # Keyin xodimni o'chirish
+    delete_employee = delete(Employee).where(Employee.id == employee_id)
+    await session.execute(delete_employee)
+    
+    await session.commit()
+    return employee
+
+
 
 
 

@@ -170,8 +170,7 @@ async def get_today_attendance(employee_id: int, db: AsyncSession = Depends(get_
             "id": attendance.id,
             "check_type": attendance.check_type.value,
             "check_time": attendance.check_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "is_late": attendance.is_late,
-            "is_early_departure": attendance.is_early_departure
+            "is_late": attendance.is_late
         })
     
     return {

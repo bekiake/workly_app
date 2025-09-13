@@ -34,21 +34,16 @@ def is_working_hours(check_time: datetime, check_type: str) -> tuple[bool, str]:
     
     return True, ""
 
-def calculate_attendance_status(check_time: datetime, check_type: str) -> tuple[bool, bool]:
-    """Kechikish va erta ketishni hisoblash"""
+def calculate_attendance_status(check_time: datetime, check_type: str) -> bool:
+    """Kechikishni hisoblash (faqat IN uchun)"""
     current_time = check_time.time()
     is_late = False
-    is_early_departure = False
     
     if check_type == "IN":
         # 9:30 dan keyin kelgan bo'lsa kech
         is_late = current_time > WORK_START_TIME
     
-    elif check_type == "OUT":
-        # 18:00 dan oldin ketgan bo'lsa erta
-        is_early_departure = current_time < WORK_END_TIME
-    
-    return is_late, is_early_departure
+    return is_late
 
 def calculate_time_difference_minutes(actual_time: time, expected_time: time) -> int:
     """Vaqtlar orasidagi farqni daqiqalarda hisoblash"""
@@ -79,8 +74,8 @@ async def create_attendance_by_qr(db: AsyncSession, qr_request: attendance_schem
         action = "kelgan" if qr_request.check_type.value == "IN" else "ketgan"
         return {"error": f"Siz bugun allaqachon {action} deb belgilangansiz"}
 
-    # Kechikish va erta ketishni hisoblash
-    is_late, is_early_departure = calculate_attendance_status(check_time, qr_request.check_type.value)
+    # Kechikishni hisoblash
+    is_late = calculate_attendance_status(check_time, qr_request.check_type.value)
     
     db_attendance = attendance_model.Attendance(
         employee_id=employee.id,
@@ -89,8 +84,7 @@ async def create_attendance_by_qr(db: AsyncSession, qr_request: attendance_schem
         check_time=check_time,  # Явно устанавливаем Ташкентское время
         location_lat=qr_request.location_lat if hasattr(qr_request, 'location_lat') else None,
         location_lon=qr_request.location_lon if hasattr(qr_request, 'location_lon') else None,
-        is_late=is_late,
-        is_early_departure=is_early_departure
+        is_late=is_late
     )
     db.add(db_attendance)
     await db.commit()
@@ -102,9 +96,6 @@ async def create_attendance_by_qr(db: AsyncSession, qr_request: attendance_schem
     if is_late:
         diff_minutes = calculate_time_difference_minutes(check_time.time(), WORK_START_TIME)
         status_msg = f" ({diff_minutes} daqiqa kech)"
-    elif is_early_departure:
-        diff_minutes = abs(calculate_time_difference_minutes(check_time.time(), WORK_END_TIME))
-        status_msg = f" ({diff_minutes} daqiqa erta)"
         
     return {
         "success": True,
@@ -125,15 +116,14 @@ async def create_attendance(db: AsyncSession, attendance: attendance_schema.Atte
     if not is_valid_time:
         return {"error": time_error}
 
-    # Kechikish va erta ketishni hisoblash
-    is_late, is_early_departure = calculate_attendance_status(check_time, attendance.check_type.value)
+    # Kechikishni hisoblash
+    is_late = calculate_attendance_status(check_time, attendance.check_type.value)
     
     db_attendance = attendance_model.Attendance(
         employee_id=employee.id,
         check_type=attendance.check_type,
         check_time=check_time,  # Явно устанавливаем Ташкентское время
-        is_late=is_late,
-        is_early_departure=is_early_departure
+        is_late=is_late
     )
     db.add(db_attendance)
     await db.commit()
@@ -268,17 +258,13 @@ async def calculate_daily_work_hours(db: AsyncSession, employee_id: int, target_
             "check_in": None,
             "check_out": None,
             "is_late": False,
-            "is_early_departure": False,
-            "late_minutes": 0,
-            "early_departure_minutes": 0
+            "late_minutes": 0
         }
     
     check_in = None
     check_out = None
     is_late = False
-    is_early_departure = False
     late_minutes = 0
-    early_departure_minutes = 0
     
     for attendance in attendances:
         if attendance.check_type.value == "IN":
@@ -290,11 +276,6 @@ async def calculate_daily_work_hours(db: AsyncSession, employee_id: int, target_
                 )
         elif attendance.check_type.value == "OUT":
             check_out = attendance.check_time
-            is_early_departure = attendance.is_early_departure
-            if is_early_departure:
-                early_departure_minutes = abs(calculate_time_difference_minutes(
-                    attendance.check_time.time(), WORK_END_TIME
-                ))
     
     # Ish soatlarini hisoblash
     worked_hours = 0
@@ -325,9 +306,7 @@ async def calculate_daily_work_hours(db: AsyncSession, employee_id: int, target_
         "check_in": check_in,
         "check_out": check_out,
         "is_late": is_late,
-        "is_early_departure": is_early_departure,
-        "late_minutes": late_minutes,
-        "early_departure_minutes": early_departure_minutes
+        "late_minutes": late_minutes
     }
 
 async def get_employee_monthly_statistics(db: AsyncSession, employee_id: int, month: int, year: int) -> dict:
@@ -374,10 +353,6 @@ async def get_employee_monthly_statistics(db: AsyncSession, employee_id: int, mo
                 if day_stats["is_late"]:
                     late_days += 1
                     total_late_minutes += day_stats["late_minutes"]
-                
-                if day_stats["is_early_departure"]:
-                    early_departure_days += 1
-                    total_early_departure_minutes += day_stats["early_departure_minutes"]
         
         current_date += timedelta(days=1)
     
@@ -389,31 +364,28 @@ async def get_employee_monthly_statistics(db: AsyncSession, employee_id: int, mo
     base_salary = float(employee.base_salary) if employee.base_salary else 0
     expected_hours = working_days * 8.5  # 8.5 soat kuniga
     
-    # Udjelishlar hisoblash
+    # Udjelishlar hisoblash (erta ketish yo'q)
     salary_calculations = calculate_salary_deductions(
         base_salary=base_salary,
         worked_hours=total_worked_hours,
         expected_hours=expected_hours,
         late_days=late_days,
-        early_departure_days=early_departure_days,
         absent_days=working_days - present_days
     )
     
     return {
         "employee_id": employee_id,
         "employee_name": employee.full_name,
-        "position": employee.position.value if employee.position else "Unknown",
+        "position": employee.position if employee.position else "Unknown",
         "month": month,
         "year": year,
         "working_days": working_days,
         "present_days": present_days,
         "absent_days": working_days - present_days,
         "late_days": late_days,
-        "early_departure_days": early_departure_days,
         "total_worked_hours": round(total_worked_hours, 2),
         "expected_hours": expected_hours,
         "total_late_minutes": total_late_minutes,
-        "total_early_departure_minutes": total_early_departure_minutes,
         "attendance_rate": round(attendance_rate, 2),
         "punctuality_rate": round(punctuality_rate, 2),
         "salary_info": salary_calculations,
@@ -421,7 +393,7 @@ async def get_employee_monthly_statistics(db: AsyncSession, employee_id: int, mo
     }
 
 def calculate_salary_deductions(base_salary: float, worked_hours: float, expected_hours: float, 
-                              late_days: int, early_departure_days: int, absent_days: int) -> dict:
+                              late_days: int, absent_days: int) -> dict:
     """Maosh va uderzhaniyalarni hisoblash"""
     
     if base_salary <= 0:
@@ -454,14 +426,6 @@ def calculate_salary_deductions(base_salary: float, worked_hours: float, expecte
             "days": late_days,
             "amount": round(late_penalty, 2),
             "description": f"Har kechikish uchun 1% (jami {late_days}%)"
-        }
-    
-    # Erta ketishlar uchun uderjhanie (har erta ketish uchun kichik jarim)
-    if early_departure_days > 0:
-        early_penalty = early_departure_days * (daily_salary * 0.03)  # Har erta ketish uchun kunlik maoshning 3%
-        deductions["early_departures"] = {
-            "days": early_departure_days,
-            "amount": round(early_penalty, 2)
         }
     
     # Kam ishlanhan soatlar uchun

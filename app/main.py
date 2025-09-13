@@ -37,16 +37,15 @@ class EmployeeAdmin(ModelView, model=Employee):
     icon = "fa-solid fa-user"
 
 class AttendanceAdmin(ModelView, model=Attendance):
-    column_list = [Attendance.id, Attendance.employee_id, Attendance.check_type, Attendance.check_time, Attendance.is_late, Attendance.is_early_departure]
+    column_list = [Attendance.id, Attendance.employee_id, Attendance.check_type, Attendance.check_time, Attendance.is_late]
     column_sortable_list = [Attendance.id, Attendance.employee_id, Attendance.check_time]
-    column_details_list = [Attendance.id, Attendance.employee_id, Attendance.check_type, Attendance.check_time, Attendance.is_late, Attendance.is_early_departure]
+    column_details_list = [Attendance.id, Attendance.employee_id, Attendance.check_type, Attendance.check_time, Attendance.is_late]
     column_labels = {
         Attendance.id: "ID",
         Attendance.employee_id: "Xodim ID",
         Attendance.check_type: "Tur",
         Attendance.check_time: "Vaqt",
-        Attendance.is_late: "Kech qolgan",
-        Attendance.is_early_departure: "Erta ketgan"
+        Attendance.is_late: "Kech qolgan"
     }
     name = "Davomat"
     name_plural = "Davomat yozuvlari"

@@ -235,8 +235,7 @@ async def recognize_face_attendance(
                     "id": attendance.id,
                     "check_type": check_type.value,
                     "check_time": attendance.check_time.isoformat(),
-                    "is_late": attendance.is_late,
-                    "is_early_departure": attendance.is_early_departure
+                    "is_late": attendance.is_late
                 },
                 "recognition": {
                     "confidence": recognition_result["confidence"],
