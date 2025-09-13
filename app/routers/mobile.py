@@ -79,7 +79,7 @@ async def mobile_qr_scan(qr_request: QRScanRequest, db: AsyncSession = Depends(g
         "message": f"✅ {action}!",
         "employee_photo": employee.photo if employee.photo else None,
         "employee_name": employee.full_name,
-        "employee_position": employee.position.value if employee.position else "Belgilanmagan",
+        "employee_position": employee.position if employee.position else "Belgilanmagan",
         "check_time": actual_attendance.check_time.strftime("%Y-%m-%d %H:%M:%S"),
         "check_type": actual_attendance.check_type.value,
         "is_late": actual_attendance.is_late
@@ -148,7 +148,7 @@ async def get_mobile_employee_info(employee_uuid: str, db: AsyncSession = Depend
         "id": employee.id,
         "uuid": employee.uuid,
         "full_name": employee.full_name,
-        "position": employee.position.value if employee.position else None,
+        "position": employee.position if employee.position else None,
         "phone": employee.phone,
         "photo": employee.photo,
         "is_active": employee.is_active
@@ -214,7 +214,7 @@ async def check_mobile_status(qr_request: QRScanRequest, db: AsyncSession = Depe
             "error_code": "ALREADY_CHECKED",
             "employee": {
                 "name": employee.full_name,
-                "position": employee.position.value if employee.position else None
+                "position": employee.position if employee.position else None
             }
         }
     
@@ -223,7 +223,7 @@ async def check_mobile_status(qr_request: QRScanRequest, db: AsyncSession = Depe
         "message": "Scan qilish mumkin",
         "employee": {
             "name": employee.full_name,
-            "position": employee.position.value if employee.position else None,
+            "position": employee.position if employee.position else None,
             "photo": employee.photo
         },
         "check_type": qr_request.check_type.value

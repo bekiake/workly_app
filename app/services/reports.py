@@ -78,7 +78,7 @@ async def generate_detailed_monthly_report(db: AsyncSession, year: int, month: i
     # Header - batafsil ma'lumotlar
     headers = [
         "№", "Xodim ismi", "Lavozimi", "Jami kelgan kunlar", "Kechikkanlar", 
-        "Erta ketganlar", "Asosiy maosh", "Yakuniy maosh", "Chegirmalar", "Izoh"
+        "Asosiy maosh", "Yakuniy maosh", "Chegirmalar", "Izoh"
     ]
     
     # Header qo'shish
@@ -101,10 +101,8 @@ async def generate_detailed_monthly_report(db: AsyncSession, year: int, month: i
         izoh_parts = []
         if row_data["late_days"] > 0:
             izoh_parts.append(f"Kechikish: {row_data['late_days']} kun")
-        if row_data.get("early_departure_days", 0) > 0:
-            izoh_parts.append(f"Erta ketish: {row_data.get('early_departure_days', 0)} kun")
         if total_deductions > 0:
-            izoh_parts.append(f"Jarim: {total_deductions:,.0f} so'm")
+            izoh_parts.append(f"Jarima: {total_deductions:,.0f} so'm")
         izoh = "; ".join(izoh_parts) if izoh_parts else "Yaxshi ish"
         
         row_values = [
@@ -113,7 +111,6 @@ async def generate_detailed_monthly_report(db: AsyncSession, year: int, month: i
             row_data["position"] if row_data["position"] else "Belgilanmagan",
             row_data["present_days"],
             row_data["late_days"],
-            row_data.get("early_departure_days", 0),
             f"{base_salary:,.0f}" if base_salary > 0 else "Belgilanmagan",
             f"{final_salary:,.0f}" if final_salary > 0 else "0",
             f"{total_deductions:,.0f}" if total_deductions > 0 else "0",
@@ -128,9 +125,7 @@ async def generate_detailed_monthly_report(db: AsyncSession, year: int, month: i
             # Rangli format
             if col == 5 and isinstance(value, int) and value > 0:  # Kechikkanlar
                 cell.fill = PatternFill(start_color="FFD7D7", end_color="FFD7D7", fill_type="solid")
-            if col == 6 and isinstance(value, int) and value > 0:  # Erta ketganlar
-                cell.fill = PatternFill(start_color="FFD7D7", end_color="FFD7D7", fill_type="solid")
-            if col == 9 and isinstance(value, str) and "0" not in value:  # Chegirmalar
+            if col == 8 and isinstance(value, str) and "0" not in value:  # Chegirmalar
                 cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
     
     # Ma'lumotlarni qo'shish
@@ -145,10 +140,8 @@ async def generate_detailed_monthly_report(db: AsyncSession, year: int, month: i
         izoh_parts = []
         if row_data["late_days"] > 0:
             izoh_parts.append(f"Kechikish: {row_data['late_days']} kun")
-        if row_data.get("early_departure_days", 0) > 0:
-            izoh_parts.append(f"Erta ketish: {row_data.get('early_departure_days', 0)} kun")
         if total_deductions > 0:
-            izoh_parts.append(f"Jarim: {total_deductions:,.0f} so'm")
+            izoh_parts.append(f"Jarima: {total_deductions:,.0f} so'm")
         izoh = "; ".join(izoh_parts) if izoh_parts else "Yaxshi ish"
         
         row_values = [
@@ -157,7 +150,6 @@ async def generate_detailed_monthly_report(db: AsyncSession, year: int, month: i
             row_data["position"] if row_data["position"] else "Belgilanmagan",
             row_data["present_days"],
             row_data["late_days"],
-            row_data.get("early_departure_days", 0),
             f"{base_salary:,.0f}" if base_salary > 0 else "Belgilanmagan",
             f"{final_salary:,.0f}" if final_salary > 0 else "0",
             f"{total_deductions:,.0f}" if total_deductions > 0 else "0",
@@ -172,7 +164,6 @@ async def generate_detailed_monthly_report(db: AsyncSession, year: int, month: i
             # Rangli format
             if col == 5 and isinstance(value, int) and value > 0:  # Kechikkanlar
                 cell.fill = PatternFill(start_color="FFD7D7", end_color="FFD7D7", fill_type="solid")
-            if col == 6 and isinstance(value, int) and value > 0:  # Erta ketganlar
                 cell.fill = PatternFill(start_color="FFD7D7", end_color="FFD7D7", fill_type="solid")
             if col == 9 and isinstance(value, str) and "0" not in value:  # Chegirmalar
                 cell.fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
@@ -227,7 +218,7 @@ async def generate_monthly_report(db: AsyncSession, year: int, month: int):
     # Header - davomat ma'lumotlari
     headers = [
         "№", "Xodim ismi", "Lavozimi", "Umumiy ish kunlari", "Jami kelgan kunlar", 
-        "Kechikkan kunlar", "Erta ketgan kunlar", "Ishga kelmagan kunlar", "Davomat %"
+        "Kechikkan kunlar", "Ishga kelmagan kunlar", "Davomat %"
     ]
     
     # Header qo'shish
@@ -249,7 +240,6 @@ async def generate_monthly_report(db: AsyncSession, year: int, month: int):
             working_days,
             row_data["present_days"],
             row_data["late_days"],
-            row_data.get("early_departure_days", 0),
             working_days - row_data["present_days"],  # Yo'qliklar
             f"{attendance_percentage:.1f}%"
         ]
@@ -264,9 +254,7 @@ async def generate_monthly_report(db: AsyncSession, year: int, month: int):
                 numeric_value = float(str(value).replace(",", "").replace("%", "")) if isinstance(value, str) else value
                 if col == 6 and numeric_value > 0:  # Kechikkanlar ustuni
                     cell.fill = PatternFill(start_color="FFD7D7", end_color="FFD7D7", fill_type="solid")
-                if col == 7 and numeric_value > 0:  # Erta ketganlar ustuni  
-                    cell.fill = PatternFill(start_color="FFD7D7", end_color="FFD7D7", fill_type="solid")
-                if col == 8 and numeric_value > 0:  # Yo'qliklar ustuni
+                if col == 7 and numeric_value > 0:  # Yo'qliklar ustuni
                     cell.fill = PatternFill(start_color="FFD7D7", end_color="FFD7D7", fill_type="solid")
             except (ValueError, TypeError):
                 pass  # Agar raqamga aylantira olmasak, rangni o'zgartirmaymiz
@@ -279,8 +267,7 @@ async def generate_monthly_report(db: AsyncSession, year: int, month: int):
     ws.cell(row=total_row, column=1, value="JAMI:").font = Font(bold=True)
     ws.cell(row=total_row, column=5, value=sum(row["present_days"] for row in report_data)).font = Font(bold=True)
     ws.cell(row=total_row, column=6, value=sum(row["late_days"] for row in report_data)).font = Font(bold=True)
-    ws.cell(row=total_row, column=7, value=sum(row.get("early_departure_days", 0) for row in report_data)).font = Font(bold=True)
-    ws.cell(row=total_row, column=8, value=sum(working_days - row["present_days"] for row in report_data)).font = Font(bold=True)
+    ws.cell(row=total_row, column=7, value=sum(working_days - row["present_days"] for row in report_data)).font = Font(bold=True)
     
     # Fayl nomini yaratish
     os.makedirs("reports", exist_ok=True)

@@ -142,7 +142,7 @@ async def get_employee_monthly_stats(
         "employee": {
             "id": employee.id,
             "name": employee.full_name,
-            "position": employee.position.value if employee.position else None
+            "position": employee.position if employee.position else None
         },
         "period": {
             "month": month,

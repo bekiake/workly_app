@@ -55,7 +55,6 @@ class DailyWorkStats(BaseModel):
     check_out: Optional[datetime] = None
     is_late: bool = False
     late_minutes: int = 0
-    early_departure_minutes: int = 0
 
 class SalaryDeduction(BaseModel):
     """Maosh uderzhaniya ma'lumotlari"""
@@ -85,11 +84,9 @@ class MonthlyEmployeeStats(BaseModel):
     present_days: int
     absent_days: int
     late_days: int
-    early_departure_days: int
     total_worked_hours: float
     expected_hours: float
     total_late_minutes: int
-    total_early_departure_minutes: int
     attendance_rate: float
     punctuality_rate: float
     salary_info: SalaryInfo

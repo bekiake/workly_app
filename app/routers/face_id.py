@@ -229,7 +229,7 @@ async def recognize_face_attendance(
                 "employee": {
                     "id": employee_id,
                     "name": employee.full_name,
-                    "position": employee.position.value
+                    "position": employee.position
                 },
                 "attendance": {
                     "id": attendance.id,
@@ -266,7 +266,7 @@ async def get_employee_face_info(
         "employee": {
             "id": employee_id,
             "name": employee.full_name,
-            "position": employee.position.value
+            "position": employee.position
         },
         "face_data": {
             "registered_faces": face_count,

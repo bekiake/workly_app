@@ -52,7 +52,7 @@ async def get_daily_attendance(target_date: date, db: AsyncSession = Depends(get
         result.append({
             "id": attendance.id,
             "employee_name": attendance.employee.full_name,
-            "employee_position": attendance.employee.position.value if attendance.employee.position else "N/A",
+            "employee_position": attendance.employee.position if attendance.employee.position else "N/A",
             "check_type": attendance.check_type.value,
             "check_time": attendance.check_time,
             "is_late": attendance.is_late
@@ -263,7 +263,6 @@ async def get_work_time_config():
         "salary_calculation": {
             "working_days_per_month": 22,
             "late_penalty": "0.5 soat har kechikish uchun",
-            "early_departure_penalty": "0.5 soat har erta ketish uchun",
             "absence_penalty": "To'liq kunlik maosh"
         }
     }

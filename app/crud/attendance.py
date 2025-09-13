@@ -187,12 +187,11 @@ async def get_monthly_attendance_report(db: AsyncSession, month: int, year: int)
         reports.append({
             "employee_id": employee.id,
             "employee_name": employee.full_name,
-            "position": employee.position.value,
+            "position": employee.position,
             "working_days": working_days,
             "present_days": stats["present_days"],
             "absent_days": stats["absent_days"],
             "late_days": stats["late_days"],
-            "early_departure_days": stats["early_departure_days"],
             "total_worked_hours": stats["total_worked_hours"],
             "expected_hours": stats["expected_hours"],
             "attendance_rate": stats["attendance_rate"],
@@ -332,10 +331,8 @@ async def get_employee_monthly_statistics(db: AsyncSession, employee_id: int, mo
     total_worked_hours = 0
     present_days = 0
     late_days = 0
-    early_departure_days = 0
     working_days = 0
     total_late_minutes = 0
-    total_early_departure_minutes = 0
     
     current_date = start_date
     while current_date <= end_date:
@@ -427,16 +424,6 @@ def calculate_salary_deductions(base_salary: float, worked_hours: float, expecte
             "amount": round(late_penalty, 2),
             "description": f"Har kechikish uchun 1% (jami {late_days}%)"
         }
-    
-    # Kam ishlanhan soatlar uchun
-    if worked_hours < expected_hours:
-        shortage_hours = expected_hours - worked_hours
-        if shortage_hours > 2:  # 2 soatdan ko'p kamchlik bo'lsa
-            shortage_deduction = shortage_hours * hourly_salary
-            deductions["hour_shortage"] = {
-                "hours": round(shortage_hours, 2),
-                "amount": round(shortage_deduction, 2)
-            }
     
     # Umumiy uderzhaniya
     total_deductions = sum(item["amount"] for item in deductions.values())

@@ -9,7 +9,7 @@ import calendar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from filters.chat_types import ChatTypeFilter, IsAdmin
+from app.bot.filters.chat_types import ChatTypeFilter, IsAdmin
 from database.orm_query import orm_get_daily_attendance_report
 from kbds.inline import get_admin_reports_keyboard, get_month_selection_keyboard
 
